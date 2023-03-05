@@ -118,7 +118,7 @@ services:
       - cluster.name=es-docker-cluster
       - discovery.seed_hosts=es01,es02,es03,es04,es05
       - cluster.initial_master_nodes=es01,es02,es03,es04,es05
-      - network.publish_host=5.253.27.124
+      - network.publish_host=x.x.x.x
       - ELASTIC_PASSWORD=$ELASTIC_PASSWORD 
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -168,7 +168,7 @@ we set `basic` for license as below config:
 xpack.license.self_generated.type=basic
 ```
 if your nodes are in local network, extra_hosts should be like `192.168.x.x` and create needed rules in your firewal with NAT
-![](./images/firewall-rules.png)
+
 
 Now you can Access the Elasticsearch API over SSL/TLS using the bootstrapped password:
 ```
