@@ -1,0 +1,108 @@
+version: '3.9'
+services:
+#elastic
+
+  es01:
+    image: docker.mediana.ir/elasticsearch/elasticsearch:7.15.2
+    container_name: es01
+    restart: always
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01
+      - cluster.initial_master_nodes=es01
+      #- network.publish_host=
+      - ELASTIC_PASSWORD=$ELASTIC_PASSWORD 
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=true
+      - xpack.license.self_generated.type=basic 
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=$CERTS_DIR/es01/es01.key
+      - xpack.security.http.ssl.certificate_authorities=$CERTS_DIR/ca/ca.crt
+      - xpack.security.http.ssl.certificate=$CERTS_DIR/es01/es01.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate 
+      - xpack.security.transport.ssl.certificate_authorities=$CERTS_DIR/ca/ca.crt
+      - xpack.security.transport.ssl.certificate=$CERTS_DIR/es01/es01.crt
+      - xpack.security.transport.ssl.key=$CERTS_DIR/es01/es01.key
+    volumes: 
+      - data01:/usr/share/elasticsearch/data
+      - $PWD/cert:/usr/share/elasticsearch/config/certificates
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports: 
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - my_service
+    healthcheck:
+      test: curl --cacert $CERTS_DIR/ca/ca.crt -s https://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+#apm-server
+  apm-server:
+    image: docker.mediana.ir/apm/apm-server:7.15.2
+    container_name: apm-server
+    depends_on:
+      es01:
+        condition: service_healthy
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
+    cap_drop: ["ALL"]
+    ports:
+    - 8200:8200
+    command: >
+       apm-server -e
+         -E apm-server.rum.enabled=true
+         -E setup.template.settings.index.number_of_replicas=0
+         -E output.elasticsearch.hosts=["https://es01:9200"]
+         -E output.elasticsearch.cacert=/usr/share/elasticsearch/config/certificates/ca/ca.crt
+         -E output.elasticsearch.user=elastic
+         -E output.elasticsearch.password=$ELASTIC_PASSWORD
+         -E output.elasticsearch.ssl_certificate_verification=false
+    volumes:
+      - $PWD/cert:/usr/share/elasticsearch/config/certificates
+    healthcheck:
+      interval: 10s
+      retries: 12
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8200/
+    networks:
+     - my_service
+
+#kibana
+
+  kibana:
+    image: docker.mediana.ir/kibana/kibana:7.15.2
+    container_name: kibana
+    depends_on:
+      es01:
+        condition: service_healthy
+    environment:
+      #SERVERNAME: localhost
+      ELASTICSEARCH_URL: https://es01:9200
+      ELASTICSEARCH_HOSTS: https://es01:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: $ELASTIC_PASSWORD
+      ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES: $CERTS_DIR/ca/ca.crt
+      ELASTICSEARCH_REQUESTTIMEOUT: 60000
+      #SERVER_SSL_ENABLED: "true"
+      #SERVER_SSL_KEY: $CERTS_DIR/kib01/kib01.key
+      #SERVER_SSL_CERTIFICATE: $CERTS_DIR/kib01/kib01.crt
+    volumes:
+      - ./kibana.yml:/usr/share/kibana/config/kibana.yml
+      - $PWD/cert:$CERTS_DIR
+    ports:
+    - 5601:5601
+    networks:
+      - my_service
+
+volumes:
+  data01:
+
+networks:
+  my_service:
+    external: true
