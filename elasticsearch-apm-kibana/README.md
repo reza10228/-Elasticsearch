@@ -86,7 +86,7 @@ version: '3.9'
 services:
   create_certs:
     container_name: create_certs
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.2
+    image: elasticsearch:7.15.2
     command: >
       bash -c '
         rm -f /certs/bundle.zip
@@ -117,7 +117,7 @@ services:
 #elastic
 
   es01:
-    image: docker.mediana.ir/elasticsearch/elasticsearch:7.15.2
+    image: elasticsearch:7.15.2
     container_name: es01
     restart: always
     environment:
@@ -160,7 +160,7 @@ services:
 
 #apm-server
   apm-server:
-    image: docker.mediana.ir/apm/apm-server:7.15.2
+    image: apm-server:7.15.2
     container_name: apm-server
     depends_on:
       es01:
@@ -190,7 +190,7 @@ services:
 #kibana
 
   kibana:
-    image: docker.mediana.ir/kibana/kibana:7.15.2
+    image: kibana:7.15.2
     container_name: kibana
     depends_on:
       es01:
